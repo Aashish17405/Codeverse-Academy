@@ -22,7 +22,7 @@ jobs:
 
       - name: Install Dependencies
         run: npm install --legacy-peer-deps
-      
+
       - name: Build Application
         run: npm run build
 
@@ -37,13 +37,23 @@ jobs:
             cd /home/ubuntu
             echo "📁 Entered /home/ubuntu directory"
 
-            if [ ! -d "codeverse" ]; then
+            # Ensure NVM is loaded
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
+            # Install PM2 globally if not installed
+            if ! command -v pm2 &> /dev/null; then
+              echo "🔧 Installing PM2 globally..."
+              npm install -g pm2
+            fi
+
+            if [ ! -d "Codeverse-Academy" ]; then
               echo "🧬 Cloning repository..."
               git clone git@github.com:aashish17405/Codeverse-Academy.git 
             fi        
 
-            cd codeverse
-            echo "📦 In Codeverse directory, pulling latest code..."
+            cd Codeverse-Academy
+            echo "📦 In Codeverse-Academy directory, pulling latest code..."
 
             git fetch origin main
             git reset --hard origin/main
@@ -55,7 +65,7 @@ jobs:
             echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env.local
 
             echo "📦 Installing dependencies..."
-            use npm install --legacy-peer-deps
+            npm install --legacy-peer-deps
 
             echo "🔑 Generating Prisma client..."
             npx prisma generate 
