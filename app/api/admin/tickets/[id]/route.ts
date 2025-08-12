@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { sendEmail } from "@/lib/email";
-import jwt from "jsonwebtoken";
+import checkAdminAuth from "@/lib/adminAuth";
 
 const updateTicketSchema = z.object({
   status: z.enum([
@@ -19,28 +19,8 @@ export async function GET(
   context: { params: { id: string } }
 ) {
   try {
-    const cookieHeader = req.headers.get("cookie");
-    const token = cookieHeader
-      ?.split(";")
-      .find((c) => c.trim().startsWith("adminAuth="))
-      ?.split("=")[1];
-
-    if (!token) {
-      return NextResponse.json(
-        { error: "Unauthorized: Token missing" },
-        { status: 401 }
-      );
-    }
-
-    let decodedToken: any;
-    try {
-      decodedToken = jwt.verify(token, process.env.JWT_SECRET!);
-    } catch (err) {
-      return NextResponse.json(
-        { error: "Unauthorized: Invalid token" },
-        { status: 403 }
-      );
-    }
+    const auth = checkAdminAuth(req);
+    if (!auth.authorized) return auth.response;
 
     const ticketId = context.params.id;
     console.log(ticketId);
@@ -84,32 +64,13 @@ export async function PATCH(
   context: { params: { id: string } }
 ) {
   try {
-    const cookieHeader = req.headers.get("cookie");
-    const token = cookieHeader
-      ?.split(";")
-      .find((c) => c.trim().startsWith("adminAuth="))
-      ?.split("=")[1];
-
-    if (!token) {
-      return NextResponse.json(
-        { error: "Unauthorized: Token missing" },
-        { status: 401 }
-      );
-    }
-
-    let decodedToken: any;
-    try {
-      decodedToken = jwt.verify(token, process.env.JWT_SECRET!);
-    } catch (err) {
-      return NextResponse.json(
-        { error: "Unauthorized: Invalid token" },
-        { status: 403 }
-      );
-    }
+    const auth = checkAdminAuth(req);
+    if (!auth.authorized) return auth.response;
 
     const ticketId = context.params.id;
     const body = await req.json();
 
+    // Validate request body
     const validation = updateTicketSchema.safeParse(body);
     if (!validation.success) {
       return NextResponse.json(
@@ -120,6 +81,7 @@ export async function PATCH(
 
     const { status } = validation.data;
 
+    // Check if ticket exists
     const existingTicket = await prisma.ticket.findUnique({
       where: { id: ticketId },
       include: {
@@ -132,6 +94,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
     }
 
+    // Update ticket status
     const updatedTicket = await prisma.ticket.update({
       where: { id: ticketId },
       data: { status },
@@ -173,6 +136,7 @@ export async function DELETE(
   try {
     const ticketId = context.params.id;
 
+    // Check if ticket exists
     const existingTicket = await prisma.ticket.findUnique({
       where: { id: ticketId },
       include: {
@@ -183,11 +147,13 @@ export async function DELETE(
     if (!existingTicket) {
       return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
     }
-    
+
+    // Delete ticket
     await prisma.ticket.delete({
       where: { id: ticketId },
     });
 
+    // Optionally send email notification
     const emailHtml = `
       <!DOCTYPE html>
       <html>
@@ -223,15 +189,15 @@ export async function DELETE(
       </head>
       <body>
         <div class="header">
-          <h1>Codeverse Ticket Cancelled</h1>
+          <h1>AstraTech Ticket Cancelled</h1>
         </div>
         <div class="content">
           <p>Hello ${existingTicket.user.name},</p>
           <p>Your ticket (ID: ${existingTicket.id}) has been cancelled.</p>
-          <p>If you believe this is an error or would like to book another session, please visit our website or contact us at support@codeverse.edu</p>
+          <p>If you believe this is an error or would like to book another session, please visit our website or contact us at support@astratech.edu</p>
         </div>
         <div class="footer">
-          <p>© ${new Date().getFullYear()} Codeverse. All rights reserved.</p>
+          <p>© ${new Date().getFullYear()} AstraTech. All rights reserved.</p>
           <p>This is an automated email, please do not reply.</p>
         </div>
       </body>
@@ -240,7 +206,7 @@ export async function DELETE(
 
     await sendEmail({
       to: existingTicket.user.email,
-      subject: "Codeverse Ticket Cancelled",
+      subject: "AstraTech Ticket Cancelled",
       html: emailHtml,
     });
 

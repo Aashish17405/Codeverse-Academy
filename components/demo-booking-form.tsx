@@ -31,7 +31,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
 import { DemoTicket } from "@/components/DemoTicket";
 
 const formSchema = z.object({
@@ -289,7 +288,7 @@ export function DemoBookingForm({ children }: { children: React.ReactNode }) {
       </Dialog>
 
       {showTicket && ticketData && (
-        <DemoTicket ticketData={ticketData} onClose={closeTicket} />
+        <DemoTicket ticketData={ticketData} onClose={closeTicket} setTicketUrl={() => {}}/>
       )}
     </>
   );

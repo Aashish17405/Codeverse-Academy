@@ -37,16 +37,16 @@ export default function Navbar() {
       }`}
     >
       <div className="container mx-auto px-4 py-2 flex items-center justify-between w-full">
-        <Link href="/" className="flex items-center space-x-2 ">
+        <Link href="/" className="flex items-center space-x-2">
           <img
-            src="/logo.png"
+            src="/logo.webp"
             alt="Logo"
             width={32}
             height={32}
-            className="sm:w-10 sm:h-10 rounded-lg"
+            className="sm:w-10 sm:h-10"
           />
           <span className="font-bold text-lg sm:text-xl bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
-            CodeVerse Academy
+            Codeverse Academy
           </span>
         </Link>
 
@@ -75,10 +75,10 @@ export default function Navbar() {
               Curriculum
             </Link>
             <Link
-              href="#enrollment"
+              href="#testimonials"
               className="text-sm lg:text-base text-gray-300 hover:text-cyan-400 transition-colors"
             >
-              Enrollment
+              Testimonials
             </Link>
             <Link
               href="#faq"
@@ -122,11 +122,11 @@ export default function Navbar() {
               Curriculum
             </Link>
             <Link
-              href="#enrollment"
+              href="#testimonials"
               className="text-lg font-medium text-gray-300 hover:text-cyan-400 transition-colors"
               onClick={toggleMenu}
             >
-              Enrollment
+              Testimonials
             </Link>
             <Link
               href="#faq"

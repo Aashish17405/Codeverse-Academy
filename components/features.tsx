@@ -62,7 +62,7 @@ export default function Features() {
   }
 
   return (
-    <section id="features" className="py-20 relative">
+    <section id="features" className="py-20 pt-10 relative">
       <div className="absolute inset-0 bg-gradient-to-b from-gray-900 to-gray-800 z-0"></div>
       <div className="container mx-auto px-4 relative z-10">
         <motion.div

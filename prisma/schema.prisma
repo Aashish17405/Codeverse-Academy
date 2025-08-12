@@ -1,39 +1,120 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
-
 generator client {
   provider = "prisma-client-js"
-  output   = "./client"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-  directUrl   = env("DIRECT_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
 }
-
 
 model User {
   id          String   @id @default(uuid())
   name        String
   email       String   @unique
-  phoneNumber String?  
+  phoneNumber String?
   tickets     Ticket[]
 }
 
 model Ticket {
-  id         String      @id @default(uuid())
-  createdAt  DateTime    @default(now())
-  qrCodeUrl  String
-  status     TicketStatus
-  user       User        @relation(fields: [userId], references: [id])
-  userId     String
-  session    DemoSession @relation(fields: [sessionId], references: [id])
-  sessionId  String
+  id        String       @id @default(uuid())
+  createdAt DateTime     @default(now())
+  qrCodeUrl String
+  status    TicketStatus
+  userId    String
+  sessionId String
+  session   DemoSession  @relation(fields: [sessionId], references: [id])
+  user      User         @relation(fields: [userId], references: [id])
+}
+
+model AdminUser {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  forms        Form[]
+}
+
+model DemoSession {
+  id         String   @id @default(uuid())
+  date       DateTime
+  capacity   Int      @default(30)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  courseName String
+  tickets    Ticket[]
+}
+
+model Enquiry {
+  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  email       String
+  phoneNumber String?
+  status      EnquiryStatus @default(PENDING)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime
+}
+
+model InternshipEnrollments {
+  id                      String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  created_at              DateTime                 @default(now()) @db.Timestamptz(6)
+  name                    String?
+  collegeName             String?
+  interestedInternship    internshipEnrollment?
+  collegeEmail            String?
+  phoneNumber             String?
+  whatsappNumber          String?
+  homeLocation            String?
+  currentLocation         String?
+  attendOffline           String?
+  certificationMode       String?
+  internshipPaymentStatus internshipPaymentStatus? @default(UNPAID)
+}
+
+model Form {
+  id          String       @id @default(uuid())
+  title       String
+  description String?
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  createdBy   String
+  admin       AdminUser    @relation(fields: [createdBy], references: [id])
+  fields      FormField[]
+  responses   FormResponse[]
+  sendEmailOnSubmit Boolean @default(false)
+  emailSubject String?
+  emailContent String?
+}
+
+model FormField {
+  id          String   @id @default(uuid())
+  label       String
+  type        FieldType
+  required    Boolean  @default(false)
+  order       Int
+  options     String[] // For checkbox/radio options
+  formId      String
+  form        Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+  responses   FormFieldResponse[]
+}
+
+model FormResponse {
+  id        String   @id @default(uuid())
+  formId    String
+  form      Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  fieldResponses FormFieldResponse[]
+}
+
+model FormFieldResponse {
+  id             String      @id @default(uuid())
+  formResponseId String
+  formResponse   FormResponse @relation(fields: [formResponseId], references: [id], onDelete: Cascade)
+  formFieldId    String
+  formField      FormField   @relation(fields: [formFieldId], references: [id])
+  value          String
 }
 
 enum TicketStatus {
@@ -44,21 +125,29 @@ enum TicketStatus {
   SUBSCRIBED
 }
 
-model AdminUser {
-  id           String   @id @default(cuid())
-  name         String
-  email        String   @unique
-  passwordHash String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+enum EnquiryStatus {
+  PENDING
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
 }
 
-model DemoSession {
-  id          String    @id @default(uuid())
-  date        DateTime  
-  capacity    Int       @default(30)
-  courseName  String
-  tickets     Ticket[]
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+enum internshipEnrollment {
+  AI
+  WEB_DEV
+}
+
+enum internshipPaymentStatus {
+  PAID
+  UNPAID
+}
+
+enum FieldType {
+  TEXT
+  EMAIL
+  NUMBER
+  TEXTAREA
+  CHECKBOX
+  RADIO
+  SELECT
 }

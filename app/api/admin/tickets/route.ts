@@ -1,43 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-import prisma from "@/prisma";
+import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { sendEmail, generateTicketEmailTemplate } from "@/lib/email";
 import QRCode from "qrcode";
 import jwt from "jsonwebtoken";
+import checkAdminAuth from "@/lib/adminAuth";
 
 const adminTicketSchema = z.object({
   email: z.string().email(),
-  name: z.string().min(2),
+  name: z.string(),
   phone: z.string().min(10).optional(),
-  sessionId: z.string().uuid(),
+  // sessionId: z.string().uuid(),
 });
 
 export async function POST(req: NextRequest) {
   try {
-    const cookieHeader = req.headers.get("cookie");
-    const token = cookieHeader
-      ?.split(";")
-      .find((c) => c.trim().startsWith("adminAuth="))
-      ?.split("=")[1];
-
-    if (!token) {
-      return NextResponse.json(
-        { error: "Unauthorized: Token missing" },
-        { status: 401 }
-      );
-    }
-
-    let decodedToken: any;
-    try {
-      decodedToken = jwt.verify(token, process.env.JWT_SECRET!);
-    } catch (err) {
-      return NextResponse.json(
-        { error: "Unauthorized: Invalid token" },
-        { status: 403 }
-      );
-    }
-
     const body = await req.json();
+    console.log("Received request body:", body);
 
     const validation = adminTicketSchema.safeParse(body);
     if (!validation.success) {
@@ -47,7 +26,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { email, name, phone, sessionId } = validation.data;
+    // const { email, name, sessionId } = validation.data;
+    const { email, name } = validation.data;
+    const sessionId = "b0a89775-56f3-43f3-8550-1f7242b10942"
 
     const session = await prisma.demoSession.findUnique({
       where: { id: sessionId },
@@ -58,12 +39,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Session not found" }, { status: 404 });
     }
 
-    if (session.tickets.length >= session.capacity) {
-      return NextResponse.json(
-        { error: "Session is at full capacity" },
-        { status: 400 }
-      );
-    }
+    // if (session.tickets.length >= session.capacity) {
+    //   return NextResponse.json(
+    //     { error: "Session is at full capacity" },
+    //     { status: 400 }
+    //   );
+    // }
 
     let user = await prisma.user.findUnique({
       where: { email },
@@ -74,30 +55,17 @@ export async function POST(req: NextRequest) {
         data: {
           email,
           name,
-          phoneNumber: phone || null,
         },
-      });
-    } else if (phone && !user.phoneNumber) {
-      user = await prisma.user.update({
-        where: { id: user.id },
-        data: { phoneNumber: phone },
       });
     }
 
-    const qrCodeUrl = `${process.env.NEXT_PUBLIC_APP_URL}/tickets/${user.id}`;
-
-    const qrCodeBase64 = await QRCode.toDataURL(qrCodeUrl);
-
+    // Create ticket without image URL initially
     const ticket = await prisma.ticket.create({
       data: {
-        qrCodeUrl,
         status: "CREATED",
         userId: user.id,
         sessionId,
-      },
-      include: {
-        user: true,
-        session: true,
+        qrCodeUrl: "", // Add empty qrCodeUrl as it's required by the schema
       },
     });
 
@@ -108,42 +76,20 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    console.log(course?.courseName);
-
-    const emailTemplate = generateTicketEmailTemplate(
-      user.name,
-      session.date,
-      ticket.id,
-      course?.courseName ?? ""
-    );
-
-    await sendEmail({
-      to: user.email,
-      subject: "Your Codeverse Demo Session Ticket",
-      html: emailTemplate,
-    });
-
     return NextResponse.json(
       {
-        message: "Ticket created successfully by admin",
+        message: "Ticket created successfully",
         ticket: {
           id: ticket.id,
           status: ticket.status,
-          qrCodeUrl: ticket.qrCodeUrl,
-          user: {
-            name: ticket.user.name,
-            email: ticket.user.email,
-            phoneNumber: ticket.user.phoneNumber,
-          },
-          session: {
-            date: ticket.session.date,
-          },
+          sessionDate: session.date,
+          courseName: course?.courseName || "Demo Session",
         },
       },
       { status: 201 }
     );
   } catch (error) {
-    console.error("Error creating ticket by admin:", error);
+    console.error("Error creating ticket:", error);
     return NextResponse.json(
       { error: "Failed to create ticket" },
       { status: 500 }
@@ -152,33 +98,14 @@ export async function POST(req: NextRequest) {
 }
 export async function GET(req: NextRequest) {
   try {
-    const cookieHeader = req.headers.get("cookie");
-    const token = cookieHeader
-      ?.split(";")
-      .find((c) => c.trim().startsWith("adminAuth="))
-      ?.split("=")[1];
-
-    if (!token) {
-      return NextResponse.json(
-        { error: "Unauthorized: Token missing" },
-        { status: 401 }
-      );
-    }
-
-    let decodedToken: any;
-    try {
-      decodedToken = jwt.verify(token, process.env.JWT_SECRET!);
-    } catch (err) {
-      return NextResponse.json(
-        { error: "Unauthorized: Invalid token" },
-        { status: 403 }
-      );
-    }
+    const auth = checkAdminAuth(req);
+    if (!auth.authorized) return auth.response;
 
     const searchParams = req.nextUrl.searchParams;
     const status = searchParams.get("status");
     const sessionId = searchParams.get("sessionId");
 
+    // Build filter conditions
     const where: any = {};
 
     if (status) {

@@ -11,8 +11,6 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import { Check, Users } from "lucide-react";
 import { format } from "date-fns";
@@ -23,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { DemoTicket } from "@/components/DemoTicket";
+import { Label } from "./ui/label";
 
 export default function Enrollment() {
   const { toast } = useToast();
@@ -34,7 +32,7 @@ export default function Enrollment() {
     name: "",
     email: "",
     phone: "",
-    plan: "fasttrack-single", // Pre-selected plan
+    plan: "Demo Session", // Fixed plan - no longer selectable
     sessionId: "", // Added for demo session booking
   });
 
@@ -44,12 +42,13 @@ export default function Enrollment() {
   const [showTicket, setShowTicket] = useState(false);
   const [ticketData, setTicketData] = useState<any>(null);
   const [loadingMessage, setLoadingMessage] = useState("");
+  
   const LOADING_SENTENCES = [
     "🚀 Launching your path into AI, Web3 & MERN mastery…",
     "🔍 Searching the blockchain for your perfect session…",
     "🎓 One step closer to becoming a certified fullstack + AI developer!",
     "🧠 Assembling code, crypto, and cognition… Just a sec!",
-    "⚡ Booking your CodeVerse demo seat—where real tech skills begin.",
+    "⚡ Booking your AstraTech demo seat—where real tech skills begin.",
     "💡 Connecting you with mentors in AI, Blockchain, and Web Dev...",
     "📚 Lining up real projects, hackathons & internships for you...",
     "🧑‍💻 Building your custom path to tech career success...",
@@ -57,20 +56,16 @@ export default function Enrollment() {
     "💫 Aligning stars for your career in AI, Web3 & beyond...",
   ];
 
-  // Fetch available demo sessions
   useEffect(() => {
     async function fetchSessions() {
       setSessionsLoading(true);
       try {
-        // Use the public sessions endpoint instead of the admin endpoint
         const res = await fetch("/api/sessions");
         const data = await res.json();
 
-        // Check if the response is an array before setting it
         if (Array.isArray(data)) {
           setSessions(data);
         } else if (data.error) {
-          // Handle API error response
           console.error("API error:", data.error);
           toast({
             title: "Error",
@@ -79,17 +74,14 @@ export default function Enrollment() {
               "Failed to load available sessions. Please try again.",
             variant: "destructive",
           });
-          // Initialize sessions as an empty array to prevent map errors
           setSessions([]);
         } else {
-          // Handle unexpected response format
           console.error("Unexpected API response format:", data);
           toast({
             title: "Error",
             description: "Received unexpected data format. Please try again.",
             variant: "destructive",
           });
-          // Initialize sessions as an empty array to prevent map errors
           setSessions([]);
         }
       } catch (err) {
@@ -99,7 +91,6 @@ export default function Enrollment() {
           description: "Failed to load available sessions. Please try again.",
           variant: "destructive",
         });
-        // Initialize sessions as an empty array to prevent map errors
         setSessions([]);
       } finally {
         setSessionsLoading(false);
@@ -111,10 +102,6 @@ export default function Enrollment() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handlePlanChange = (value: string) => {
-    setFormData((prev) => ({ ...prev, plan: value }));
   };
 
   const handleSessionChange = (value: string) => {
@@ -129,7 +116,6 @@ export default function Enrollment() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validate session selection
     if (!formData.sessionId) {
       toast({
         title: "Session Required",
@@ -145,9 +131,8 @@ export default function Enrollment() {
     setLoading(true);
 
     try {
-      console.log("Form submitted:", formData);
+      // console.log("Form submitted:", formData);
 
-      // Find the selected session
       const selectedSession = sessions.find((s) => s.id === formData.sessionId);
       if (!selectedSession) {
         toast({
@@ -158,7 +143,6 @@ export default function Enrollment() {
         return;
       }
 
-      // Create ticket via API
       const ticketRes = await fetch("/api/tickets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -176,13 +160,11 @@ export default function Enrollment() {
         throw new Error(result.error || "Ticket creation failed");
       }
 
-      // Determine time slot based on course type
       const timeSlot =
         selectedSession.courseName === "regular"
           ? "4:00 PM - 6:00 PM"
           : "6:00 PM - 8:00 PM";
 
-      // Set ticket data for display
       setTicketData({
         ticketId: result.ticket.id,
         name: formData.name,
@@ -202,12 +184,12 @@ export default function Enrollment() {
       // Show ticket
       setShowTicket(true);
 
-      // Reset form (except plan which stays pre-selected)
+      // Reset form (plan is fixed)
       setFormData({
         name: "",
         email: "",
         phone: "",
-        plan: "fasttrack-single",
+        plan: "fasttrack-single", // Keep the fixed plan
         sessionId: "",
       });
     } catch (err) {
@@ -351,59 +333,49 @@ export default function Enrollment() {
             initial={{ opacity: 0, x: -30 }}
             animate={isInView ? { opacity: 1, x: 0 } : {}}
             transition={{ duration: 0.5 }}
+            className="grid grid-cols-1 md:grid-cols-2 gap-6"
           >
-            <RadioGroup
-              value={formData.plan}
-              onValueChange={handlePlanChange}
-              className="grid grid-cols-1 md:grid-cols-2 gap-6"
-            >
-              {groupedPlans.map((group) => (
-                <div
-                  key={group.course}
-                  className="rounded-xl border p-6 bg-gray-800"
-                >
-                  <h3 className="text-xl text-white font-semibold">
-                    {group.course}
-                  </h3>
-                  <ul className="mt-3 mb-4 space-y-2">
-                    {group.features.map((feature, i) => (
-                      <li
-                        key={i}
-                        className="text-gray-300 text-sm flex items-start"
-                      >
-                        <Check className="w-4 h-4 mr-2 text-cyan-500" />
-                        {feature}
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="grid md:grid-cols-2 gap-4">
-                    {group.options.map((option) => (
-                      <Label
-                        key={option.id}
-                        htmlFor={option.id}
-                        className={`p-4 rounded-lg cursor-pointer border-2 ${
-                          formData.plan === option.id
-                            ? "border-cyan-500 bg-gray-700"
-                            : "border-gray-600 hover:border-cyan-400"
-                        }`}
-                      >
-                        <RadioGroupItem
-                          value={option.id}
-                          id={option.id}
-                          className="sr-only"
-                        />
-                        <div className="text-white font-medium">
-                          {option.label}
-                        </div>
-                        <div className="text-lg text-cyan-400">
-                          {option.price}
-                        </div>
-                      </Label>
-                    ))}
+            {groupedPlans.map((group) => (
+              <div
+                key={group.course}
+                className="rounded-xl border p-6 bg-gray-800 shadow-lg"
+              >
+                <h3 className="text-xl text-white font-semibold mb-2">
+                  {group.course}
+                </h3>
+                <div className="border-b border-gray-700 mb-3 pb-2">
+                  <div className="text-cyan-400 font-medium">
+                    Course Features:
                   </div>
                 </div>
-              ))}
-            </RadioGroup>
+                <ul className="mt-3 mb-4 space-y-2">
+                  {group.features.map((feature, i) => (
+                    <li
+                      key={i}
+                      className="text-gray-300 text-sm flex items-start"
+                    >
+                      <Check className="w-4 h-4 mr-2 text-cyan-500 flex-shrink-0" />
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+                <div className="grid md:grid-cols-2 gap-4 mt-4">
+                  {group.options.map((option) => (
+                    <div
+                      key={option.id}
+                      className="p-4 rounded-lg border-2 border-gray-600 bg-gray-700/50"
+                    >
+                      <div className="text-white font-medium">
+                        {option.label}
+                      </div>
+                      <div className="text-lg text-cyan-400">
+                        {option.price}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
           </motion.div>
 
           <motion.div
@@ -524,11 +496,6 @@ export default function Enrollment() {
           </motion.div>
         </div>
       </div>
-
-      {/* Demo Ticket Modal */}
-      {showTicket && ticketData && (
-        <DemoTicket ticketData={ticketData} onClose={closeTicket} />
-      )}
     </section>
   );
 }

@@ -1,23 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import prisma from "@/prisma";
+import prisma from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
   try {
     const sessions = await prisma.demoSession.findMany({
-      include: {
+      select: {
+        id: true,
+        date: true,
+        courseName: true,
+        capacity: true,
         _count: {
-          select: { tickets: true },
-        },
-        tickets: {
           select: {
-            id: true,
-            status: true,
-            user: {
-              select: {
-                name: true,
-                email: true,
-              },
-            },
+            tickets: true,
           },
         },
       },

@@ -42,6 +42,7 @@ export default function AdminDemoBookingForm() {
   const [sessionsLoading, setSessionsLoading] = useState(false);
   const [showTicket, setShowTicket] = useState(false);
   const [ticketData, setTicketData] = useState<any>(null);
+  const [ticketUrl, setTicketUrl] = useState<string | null>(null);
 
   // Fetch available sessions when component mounts
   useEffect(() => {
@@ -224,9 +225,7 @@ export default function AdminDemoBookingForm() {
                       ) : (
                         sessions.map((session) => (
                           <SelectItem key={session.id} value={session.id}>
-                            {session.courseName === "zero-to-advanced"
-                              ? "Zero to Advanced"
-                              : "Fast-Track Course"}{" "}
+                            {session.courseName}{" "}
                             — {format(new Date(session.date), "PPP")} (
                             {session.ticketCount}/{session.capacity})
                           </SelectItem>
@@ -257,7 +256,11 @@ export default function AdminDemoBookingForm() {
 
       {/* Demo Ticket Modal */}
       {showTicket && ticketData && (
-        <DemoTicket ticketData={ticketData} onClose={closeTicket} />
+        <DemoTicket
+          ticketData={ticketData}
+          onClose={closeTicket}
+          setTicketUrl={setTicketUrl}
+        />
       )}
     </>
   );

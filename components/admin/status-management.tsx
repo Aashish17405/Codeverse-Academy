@@ -3,9 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import QrScanner from "qr-scanner";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardDescription,
+} from "@/components/ui/card";
 import { toast } from "sonner";
-import { position } from "html2canvas/dist/types/css/property-descriptors/position";
 
 interface Ticket {
   id: string;
@@ -16,11 +21,11 @@ interface Ticket {
 
 export default function StatusManagement() {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [ticket, setTicket] = useState<Ticket | null>(null);
   const [scanner, setScanner] = useState<QrScanner | null>(null);
   const [scanning, setScanning] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [scannedTicket, setScannedTicket] = useState<Ticket | null>(null);
 
   useEffect(() => {
     QrScanner.hasCamera().then((hasCamera) => {
@@ -38,12 +43,15 @@ export default function StatusManagement() {
     const qrScanner = new QrScanner(
       videoRef.current,
       (result) => {
-        console.log("QR Scan Result:", result.data);
+        // console.log("QR Scan Result:", result.data);
         handleScan(result.data);
         qrScanner.stop();
         setScanning(false);
       },
-      { returnDetailedScanResult: true }
+      {
+        returnDetailedScanResult: true,
+        highlightScanRegion: true,
+      }
     );
 
     setScanner(qrScanner);
@@ -62,24 +70,16 @@ export default function StatusManagement() {
       const res = await fetch(`/api/admin/tickets/${ticketId}`);
       const data = await res.json();
 
-      setTicket(data);
-      console.log("Fetched Ticket Details:", data);
+      setScannedTicket(data);
       toast.success("Ticket fetched successfully", { position: "top-center" });
-    } catch (err) {
+    } catch {
       try {
-        // Fallback: Treat scanned as raw ticketId
         const res = await fetch(`/api/admin/tickets/${scanned}`);
         const data = await res.json();
-        setTicket(data);
-        console.log("Fetched Ticket Details (fallback):", data);
-        toast.success("Ticket fetched via fallback", {
-          position: "top-center",
-        });
-      } catch (innerErr) {
-        toast.error("Invalid QR code or failed fetch", {
-          position: "top-center",
-        });
-        console.error("Fallback scan error:", innerErr);
+        setScannedTicket(data);
+        toast.success("Ticket fetched (fallback)", { position: "top-center" });
+      } catch {
+        toast.error("Invalid QR or fetch failed", { position: "top-center" });
       }
     } finally {
       setIsLoading(false);
@@ -87,23 +87,22 @@ export default function StatusManagement() {
   };
 
   const handleStatusUpdate = async (newStatus: string) => {
-    if (!ticket) return;
+    if (!scannedTicket) return;
 
     setIsUpdating(true);
     try {
-      const res = await fetch(`/api/admin/tickets/${ticket.id}`, {
+      const res = await fetch(`/api/admin/tickets/${scannedTicket.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
       });
 
       if (!res.ok) throw new Error();
-      const updated = await res.json();
-      setTicket(updated);
-      console.log(`Updated ticket to status "${newStatus}"`, updated);
       toast.success("Status updated", { position: "top-center" });
-    } catch (err) {
-      console.error("Failed to update status:", err);
+
+      // Reset for next scan
+      setScannedTicket(null);
+    } catch {
       toast.error("Failed to update status", { position: "top-center" });
     } finally {
       setIsUpdating(false);
@@ -111,21 +110,24 @@ export default function StatusManagement() {
   };
 
   return (
-    <Card className="max-w-xl mx-auto">
-      <CardHeader>
-        <CardTitle className="text-xl sm:text-2xl text-center">
+    <Card className="bg-gray-900 border-gray-800 shadow-lg">
+      <CardHeader className="px-4 sm:px-6">
+        <CardTitle className="text-lg sm:text-xl text-cyan-400">
           Status Management
         </CardTitle>
+        <CardDescription className="text-sm sm:text-base text-gray-400">
+          Update the status of demo sessions and manage attendee information.
+        </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="px-4 sm:px-6">
         <div className="w-full flex justify-center">
           <video
             ref={videoRef}
-            className="w-full sm:w-[400px] aspect-video rounded border shadow"
+            className="w-full max-w-[320px] aspect-square rounded border border-gray-700 shadow-md object-cover"
           />
         </div>
 
-        <div className="flex justify-center">
+        {/* <div className="flex justify-center">
           <Button
             onClick={() => {
               if (scanning) {
@@ -137,6 +139,11 @@ export default function StatusManagement() {
               }
             }}
             disabled={isLoading}
+            className={`${
+              scanning
+                ? "bg-red-600 hover:bg-red-700"
+                : "bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
+            }`}
           >
             {isLoading ? (
               <div className="w-4 h-4 border-2 border-t-transparent border-white rounded-full animate-spin"></div>
@@ -146,48 +153,60 @@ export default function StatusManagement() {
               "Start Scanner"
             )}
           </Button>
-        </div>
+        </div> */}
 
-        {ticket && (
-          <div className="space-y-2 text-sm sm:text-base">
-            <div>
-              <strong>🎟️ Ticket ID:</strong> {ticket.id}
-            </div>
-            <div>
-              <strong>📌 Status:</strong> {ticket.status}
-            </div>
-            <div>
-              <strong>👤 User:</strong> {ticket.user?.name} (
-              {ticket.user?.email})
-            </div>
-            <div>
-              <strong>📅 Session:</strong> {ticket.session?.date}
+        {!scannedTicket ? (
+          <div className="flex justify-center">
+            <Button
+              onClick={() => {
+                scanner?.start();
+                setScanning(true);
+              }}
+              disabled={isLoading}
+              className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
+            >
+              {isLoading ? (
+                <div className="w-4 h-4 border-2 border-t-transparent border-white rounded-full animate-spin"></div>
+              ) : (
+                "📷 Start Scan"
+              )}
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="text-sm sm:text-base bg-gray-800 p-4 rounded-lg border border-gray-700">
+              <p>
+                <strong className="text-cyan-400">🎟 Ticket ID:</strong>{" "}
+                {scannedTicket.id}
+              </p>
+              <p>
+                <strong className="text-cyan-400">📌 Status:</strong>{" "}
+                {scannedTicket.status}
+              </p>
+              <p>
+                <strong className="text-cyan-400">👤 User:</strong>{" "}
+                {scannedTicket.user?.name} ({scannedTicket.user?.email})
+              </p>
+              <p>
+                <strong className="text-cyan-400">📅 Session:</strong>{" "}
+                {scannedTicket.session?.date}
+              </p>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-2 pt-4">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
               <Button
                 onClick={() => handleStatusUpdate("ATTENDED")}
-                variant="default"
-                className="w-full sm:w-auto"
+                className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-sm sm:text-base py-2 sm:py-3"
                 disabled={isUpdating}
               >
-                {isUpdating ? (
-                  <div className="w-4 h-4 border-2 border-t-transparent border-white rounded-full animate-spin"></div>
-                ) : (
-                  "✅ Mark as Attended"
-                )}
+                ✅ Mark as Attended
               </Button>
               <Button
                 onClick={() => handleStatusUpdate("NOT_ATTENDED")}
-                variant="destructive"
-                className="w-full sm:w-auto"
+                className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-sm sm:text-base py-2 sm:py-3"
                 disabled={isUpdating}
               >
-                {isUpdating ? (
-                  <div className="w-4 h-4 border-2 border-t-transparent border-white rounded-full animate-spin"></div>
-                ) : (
-                  "❌ Mark as Not Attended"
-                )}
+                ❌ Mark as Not Attended
               </Button>
             </div>
           </div>

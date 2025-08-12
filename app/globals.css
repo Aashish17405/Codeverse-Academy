@@ -1,6 +1,27 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&display=swap');
+
+.ripple-effect {
+  position: absolute;
+  border-radius: 9999px;
+  background-color: rgba(255, 255, 255, 0.35); /* High-contrast white ripple */
+  transform: scale(0);
+  animation: ripple-animation 1000ms ease-out forwards;
+  pointer-events: none;
+  z-index: 50;
+  opacity: 1;
+}
+
+@keyframes ripple-animation {
+  to {
+    transform: scale(3);
+    opacity: 0;
+  }
+}
+
+
 
 @layer base {
   :root {

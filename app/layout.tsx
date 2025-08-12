@@ -4,18 +4,15 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "sonner";
-import { Analytics } from "@vercel/analytics/react";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "CodeVerse Academy",
+  title: "codeverse academy",
   description:
     "Join our intensive 5-month technology course. Limited seats available - only 30 students per batch!",
   keywords:
     "tech course, coding bootcamp, technology institute, web development, programming",
-  generator: "v0.dev",
-  viewport: "width=device-width, initial-scale=1.0, maximum-scale=1.0",
 };
 
 export default function RootLayout({
@@ -39,7 +36,6 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           {children}
-          <Analytics />
           <Toaster richColors />
         </ThemeProvider>
       </body>

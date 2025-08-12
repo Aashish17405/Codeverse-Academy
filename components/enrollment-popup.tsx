@@ -4,7 +4,14 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { X, Users } from "lucide-react";
+import {
+  X,
+  Users,
+  Calendar,
+  AlertCircle,
+  ShareIcon,
+  Share2,
+} from "lucide-react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -18,39 +25,53 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { DemoTicket } from "@/components/DemoTicket";
+import { toast } from "sonner";
 
 const formSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters" }),
   email: z.string().email({ message: "Please enter a valid email address" }),
   phone: z.string().min(10, { message: "Please enter a valid phone number" }),
-  sessionId: z.string({ required_error: "Please select a session" }),
 });
 
 type FormValues = z.infer<typeof formSchema>;
 
-export default function EnrollmentPopup() {
-  const [isVisible, setIsVisible] = useState(false);
-  const [sessions, setSessions] = useState<any[]>([]);
+interface Session {
+  id: string;
+  date: string;
+  courseName: string;
+  capacity: number;
+  ticketCount: number;
+}
+
+interface EnrollmentPopupProps {
+  initialVisible?: boolean;
+  onClose?: () => void;
+}
+
+export default function EnrollmentPopup({
+  initialVisible = false,
+  onClose,
+}: EnrollmentPopupProps = {}) {
+  const [isVisible, setIsVisible] = useState(initialVisible);
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [showTicket, setShowTicket] = useState(false);
   const [ticketData, setTicketData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [sessionsLoading, setSessionsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("");
+  const [firstSessionFilled, setFirstSessionFilled] = useState(false);
+  const [earliestFilledSession, setEarliestFilledSession] =
+    useState<Session | null>(null);
+  const [ticketUrl, setTicketUrl] = useState<string | null>(null);
 
   const LOADING_SENTENCES = [
     "🚀 Launching your path into AI, Web3 & MERN mastery…",
     "🔍 Searching the blockchain for your perfect session…",
     "🎓 One step closer to becoming a certified AI developer!",
     "🧠 Assembling code, crypto, and cognition… Just a sec!",
-    "💡 Connecting you with mentors in AI, Blockchain & Web Dev...",
+    "💡 Connecting you with mentors in AI & Web Dev...",
     "🧑‍💻 Building your custom path to tech career success...",
     "🔐 Securing your future in cutting-edge development...",
     "💫 Aligning stars for your career in AI, Web3 & beyond...",
@@ -62,9 +83,13 @@ export default function EnrollmentPopup() {
       name: "",
       email: "",
       phone: "",
-      sessionId: "",
     },
   });
+
+  // Effect to handle initialVisible changes
+  useEffect(() => {
+    setIsVisible(initialVisible);
+  }, [initialVisible]);
 
   useEffect(() => {
     // Check if popup was shown today
@@ -82,8 +107,11 @@ export default function EnrollmentPopup() {
       }
     };
 
-    checkPopupShown();
-  }, []);
+    // Only run the auto-popup logic if not explicitly shown via props
+    if (!initialVisible) {
+      checkPopupShown();
+    }
+  }, [initialVisible]);
 
   useEffect(() => {
     async function fetchSessions() {
@@ -92,6 +120,35 @@ export default function EnrollmentPopup() {
         const res = await fetch("/api/sessions");
         const data = await res.json();
         setSessions(data);
+
+        // Sort sessions by date (earliest first)
+        const sortedSessions = [...data].sort(
+          (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+        );
+
+        // Find the earliest session with capacity
+        const firstSession = sortedSessions[0];
+        const availableSession = sortedSessions.find(
+          (session) => session.ticketCount < session.capacity
+        );
+
+        // If the earliest session is filled
+        if (
+          firstSession &&
+          availableSession &&
+          firstSession.id !== availableSession.id
+        ) {
+          setFirstSessionFilled(true);
+          setEarliestFilledSession(firstSession);
+        }
+
+        // Set the selected session to the available one
+        if (availableSession) {
+          setSelectedSession(availableSession);
+        } else {
+          // No sessions with capacity available
+          console.error("No sessions with available capacity");
+        }
       } catch (err) {
         console.error("Failed to load sessions", err);
       } finally {
@@ -105,7 +162,14 @@ export default function EnrollmentPopup() {
   }, [isVisible]);
 
   const closePopup = () => {
+    // Call the onClose callback first
+    if (onClose) {
+      onClose();
+    }
+    // Then update local state
     setIsVisible(false);
+    setShowTicket(false);
+    setTicketData(null);
     // Store today's date in localStorage
     localStorage.setItem("popupLastShown", new Date().toDateString());
   };
@@ -117,16 +181,15 @@ export default function EnrollmentPopup() {
   };
 
   const onSubmit = async (data: FormValues) => {
+    // if (!selectedSession) {
+    //   alert("No available session found. Please try again later.");
+    //   return;
+    // }
+
     try {
-      const randomSentence =
-        LOADING_SENTENCES[Math.floor(Math.random() * LOADING_SENTENCES.length)];
+      const randomSentence = LOADING_SENTENCES[Math.floor(Math.random() * LOADING_SENTENCES.length)];
       setLoadingMessage(randomSentence);
       setLoading(true);
-      const selectedSession = sessions.find((s) => s.id === data.sessionId);
-      if (!selectedSession) {
-        alert("Invalid session selected.");
-        return;
-      }
 
       const ticketRes = await fetch("/api/tickets", {
         method: "POST",
@@ -134,8 +197,7 @@ export default function EnrollmentPopup() {
         body: JSON.stringify({
           name: data.name,
           email: data.email,
-          phone: data.phone,
-          sessionId: selectedSession.id,
+          // sessionId: selectedSession.id,
         }),
       });
 
@@ -143,31 +205,52 @@ export default function EnrollmentPopup() {
       if (!ticketRes.ok)
         throw new Error(result.error || "Ticket creation failed");
 
-      const timeSlot =
-        selectedSession.courseName === "regular"
-          ? "4:00 PM - 6:00 PM"
-          : "6:00 PM - 8:00 PM";
-
-      setTicketData({
-        ticketId: result.ticket.id,
-        name: data.name,
-        email: data.email,
-        course: selectedSession.courseName,
-        date: new Date(result.ticket.sessionDate),
-        timeSlot,
-        venue:
-          "Suman Tower, 3rd Floor, Above ICICI Bank, Adityapur 1, Jamshedpur",
+      const mailSent = await fetch("/api/sendTicketEmail", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: data.name,
+          email: data.email,
+          phone: data.phone,
+          sessionId: "241c5f5e-02b9-4ad5-9430-c9aa411a0458",
+        }),
       });
 
-      setIsVisible(false);
-      setShowTicket(true);
+      // const timeSlot =
+      //   selectedSession.courseName === "regular"
+      //     ? "4:00 PM - 6:00 PM"
+      //     : "6:00 PM - 8:00 PM";
+
+      // setTicketData({
+      //   ticketId: result.ticket.id,
+      //   name: data.name,
+      //   email: data.email,
+      //   course: result.ticket.courseName || selectedSession.courseName,
+      //   date: new Date(result.ticket.sessionDate),
+      //   timeSlot,
+      //   sessionId: selectedSession.id, // Add sessionId for the ticket email
+      //   phone: data.phone, // Include phone for potential future use
+      //   venue:
+      //     "Suman Tower, 3rd Floor, Above ICICI Bank, Adityapur 1, Jamshedpur",
+      // });
+
+      // setShowTicket(true);
       form.reset();
+      toast.success("Registration successful!");
     } catch (err) {
       console.error("❌ Booking Error:", err);
-      alert("Something went wrong. Please try again.");
+      toast.error("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
+      closePopup();
     }
+  };
+
+  const handleShare = () => {
+    navigator.clipboard.writeText("https://www.astratechai.com/enrollment");
+    toast.success("Enrollment link copied to clipboard!", {
+      duration: 3000,
+    });
   };
 
   return (
@@ -204,9 +287,18 @@ export default function EnrollmentPopup() {
                   <span className="sr-only">Close</span>
                 </Button>
 
-                <CardHeader className="pb-2 text-center">
+                <CardHeader className="pb-2 text-center relative">
                   <CardTitle className="text-xl flex justify-center items-center text-white">
-                    Book a Free Demo Class
+                    Register Now
+                    <div className="ml-2 bg-gray-700/50 rounded-full hover:bg-gray-600">
+                      <Button
+                        onClick={handleShare}
+                        className="bg-transparent text-white hover:bg-white/10 rounded-full"
+                        size="icon"
+                      >
+                        <Share2 className="w-5 h-5" />
+                      </Button>
+                    </div>
                   </CardTitle>
                 </CardHeader>
 
@@ -221,132 +313,214 @@ export default function EnrollmentPopup() {
                     </h3>
                   </div>
 
-                  <Form {...form}>
-                    <form
-                      onSubmit={form.handleSubmit(onSubmit)}
-                      className="space-y-4 py-2"
-                    >
-                      <FormField
-                        control={form.control}
-                        name="name"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-white">
-                              Full Name
-                            </FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="Enter your full name"
-                                {...field}
-                                className="bg-gray-700/50 border-gray-600 text-white placeholder:text-gray-400"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                  {/* {selectedSession && (
+                    <div className="mb-4 p-3 border border-blue-500/20 rounded-md bg-blue-500/10">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center text-blue-300">
+                          <Calendar className="w-4 h-4 mr-2" />
+                          <span className="font-medium">Session:</span>
+                        </div>
+                        <div className="text-gray-400 text-xs">
+                          {selectedSession.ticketCount}/
+                          {selectedSession.capacity} spots
+                        </div>
+                      </div>
+                      <div className="text-white font-semibold">
+                        {selectedSession.courseName} -{" "}
+                        {format(new Date(selectedSession.date), "PPP")}
+                      </div>
 
-                      <FormField
-                        control={form.control}
-                        name="email"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-white">Email</FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="Enter your email address"
-                                type="email"
-                                {...field}
-                                className="bg-gray-700/50 border-gray-600 text-white placeholder:text-gray-400"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="phone"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-white">
-                              Phone Number
-                            </FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="Enter your phone number"
-                                {...field}
-                                className="bg-gray-700/50 border-gray-600 text-white placeholder:text-gray-400"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="sessionId"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-white">
-                              Select a Demo Session
-                            </FormLabel>
-                            <Select
-                              onValueChange={(value) => field.onChange(value)}
-                              defaultValue={field.value}
-                            >
-                              <FormControl>
-                                <SelectTrigger className="bg-gray-700/50 border-gray-600 text-white">
-                                  <SelectValue placeholder="Choose session date & course" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {sessionsLoading ? (
-                                  <div className="flex items-center justify-center p-2">
-                                    <div className="w-5 h-5 border-2 border-t-transparent border-blue-500 rounded-full animate-spin"></div>
-                                  </div>
-                                ) : sessions.length === 0 ? (
-                                  <div className="p-2 text-center text-gray-500">
-                                    No sessions available
-                                  </div>
-                                ) : (
-                                  sessions.map((session) => (
-                                    <SelectItem
-                                      key={session.id}
-                                      value={session.id}
-                                    >
-                                      {session.courseName === "zero-to-advanced"
-                                        ? "Zero to advanced"
-                                        : "Fast-Track"}{" "}
-                                      — {format(new Date(session.date), "PPP")}{" "}
-                                      ({session.ticketCount}/{session.capacity})
-                                    </SelectItem>
-                                  ))
-                                )}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <Button
-                        type="submit"
-                        className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white"
-                        disabled={loading}
+                      {firstSessionFilled && earliestFilledSession && (
+                        <div className="mt-1 text-xs flex items-center text-amber-300">
+                          <AlertCircle className="h-3 w-3 mr-1 flex-shrink-0" />
+                          <motion.span
+                            animate={{ opacity: [0.7, 1, 0.7] }}
+                            transition={{ repeat: Infinity, duration: 2 }}
+                          >
+                            Earlier session on{" "}
+                            {format(
+                              new Date(earliestFilledSession.date),
+                              "MMM d"
+                            )}{" "}
+                            is full
+                          </motion.span>
+                        </div>
+                      )}
+                    </div>
+                  )} */}
+{/* 
+                  {sessionsLoading ? (
+                    <div className="flex items-center justify-center p-4">
+                      <div className="w-6 h-6 border-2 border-t-transparent border-blue-500 rounded-full animate-spin"></div>
+                    </div>
+                  ) : !selectedSession ? (
+                    <div className="text-center py-4 text-red-300">
+                      No available sessions found. Please check back later.
+                    </div>
+                  ) : (
+                    <Form {...form}>
+                      <form
+                        onSubmit={form.handleSubmit(onSubmit)}
+                        className="space-y-4 py-2"
                       >
-                        {loading ? (
-                          <div className="text-sm text-black text-center animate-pulse">
-                            {loadingMessage}
-                          </div>
-                        ) : (
-                          "Reserve Your Spot"
-                        )}
-                      </Button>
-                    </form>
-                  </Form>
+                        <FormField
+                          control={form.control}
+                          name="name"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-white">
+                                Full Name
+                              </FormLabel>
+                              <FormControl>
+                                <Input
+                                  placeholder="Enter your full name"
+                                  {...field}
+                                  className="bg-gray-700/50 border-gray-600 text-white placeholder:text-gray-400"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="email"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-white">
+                                Email
+                              </FormLabel>
+                              <FormControl>
+                                <Input
+                                  placeholder="Enter your email address"
+                                  type="email"
+                                  {...field}
+                                  className="bg-gray-700/50 border-gray-600 text-white placeholder:text-gray-400"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="phone"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-white">
+                                Phone Number
+                              </FormLabel>
+                              <FormControl>
+                                <Input
+                                  placeholder="Enter your phone number"
+                                  {...field}
+                                  className="bg-gray-700/50 border-gray-600 text-white placeholder:text-gray-400"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <Button
+                          type="submit"
+                          className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white"
+                          disabled={loading}
+                        >
+                          {loading ? (
+                            <div className="text-sm text-white text-center animate-pulse">
+                              {loadingMessage}
+                            </div>
+                          ) : (
+                            "Register"
+                          )}
+                        </Button>
+                      </form>
+                    </Form>
+                  )} */}
+                  <Form {...form}>
+                      <form
+                        onSubmit={form.handleSubmit(onSubmit)}
+                        className="space-y-4 py-2"
+                      >
+                        <FormField
+                          control={form.control}
+                          name="name"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-white">
+                                Full Name
+                              </FormLabel>
+                              <FormControl>
+                                <Input
+                                  placeholder="Enter your full name"
+                                  {...field}
+                                  className="bg-gray-700/50 border-gray-600 text-white placeholder:text-gray-400"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="email"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-white">
+                                Email
+                              </FormLabel>
+                              <FormControl>
+                                <Input
+                                  placeholder="Enter your email address"
+                                  type="email"
+                                  {...field}
+                                  className="bg-gray-700/50 border-gray-600 text-white placeholder:text-gray-400"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="phone"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-white">
+                                Phone Number
+                              </FormLabel>
+                              <FormControl>
+                                <Input
+                                  placeholder="Enter your phone number"
+                                  {...field}
+                                  className="bg-gray-700/50 border-gray-600 text-white placeholder:text-gray-400"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <Button
+                          type="submit"
+                          className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white"
+                          disabled={loading}
+                        >
+                          {loading ? (
+                            <div className="text-sm text-white text-center animate-pulse">
+                              {loadingMessage}
+                            </div>
+                          ) : (
+                            "Register"
+                          )}
+                        </Button>
+                      </form>
+                    </Form>
                 </CardContent>
               </Card>
             </motion.div>
@@ -354,9 +528,13 @@ export default function EnrollmentPopup() {
         )}
       </AnimatePresence>
 
-      {showTicket && ticketData && (
-        <DemoTicket ticketData={ticketData} onClose={closeTicket} />
-      )}
+      {/* {showTicket && ticketData && (
+        <DemoTicket
+          ticketData={ticketData}
+          onClose={closeTicket}
+          setTicketUrl={setTicketUrl}
+        />
+      )} */}
     </>
   );
 }

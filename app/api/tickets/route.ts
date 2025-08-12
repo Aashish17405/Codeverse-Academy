@@ -1,17 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import prisma from "@/prisma";
-import { sendEmail, generateTicketEmailTemplate } from "@/lib/email";
+import prisma from "@/lib/prisma";
 import { z } from "zod";
+// Removed email imports as we'll handle that in a separate endpoint
 
 const ticketSchema = z.object({
   email: z.string().email(),
-  name: z.string().min(2),
-  sessionId: z.string().uuid(),
+  name: z.string(),
+  // sessionId: z.string().uuid(),
+  // Removed imageUrl requirement as it will be added later
 });
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
+    console.log("Received request body:", body);
 
     const validation = ticketSchema.safeParse(body);
     if (!validation.success) {
@@ -21,7 +23,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { email, name, sessionId } = validation.data;
+    // const { email, name, sessionId } = validation.data;
+    const { email, name } = validation.data;
+    const sessionId = "5a66db11-ad7d-4297-8526-37b9fc7a19fa"
 
     const session = await prisma.demoSession.findUnique({
       where: { id: sessionId },
@@ -32,12 +36,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Session not found" }, { status: 404 });
     }
 
-    if (session.tickets.length >= session.capacity) {
-      return NextResponse.json(
-        { error: "Session is at full capacity" },
-        { status: 400 }
-      );
-    }
+    // if (session.tickets.length >= session.capacity) {
+    //   return NextResponse.json(
+    //     { error: "Session is at full capacity" },
+    //     { status: 400 }
+    //   );
+    // }
 
     let user = await prisma.user.findUnique({
       where: { email },
@@ -52,14 +56,13 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const qrCodeUrl = `${process.env.NEXT_PUBLIC_APP_URL}/tickets/${user.id}`;
-
+    // Create ticket without image URL initially
     const ticket = await prisma.ticket.create({
       data: {
-        qrCodeUrl,
         status: "CREATED",
         userId: user.id,
         sessionId,
+        qrCodeUrl: "", // Add empty qrCodeUrl as it's required by the schema
       },
     });
 
@@ -70,27 +73,14 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    const emailTemplate = generateTicketEmailTemplate(
-      user.name,
-      session.date,
-      ticket.id,
-      course?.courseName ?? "",
-    );
-
-    await sendEmail({
-      to: user.email,
-      subject: "Your Codeverse Demo Session Ticket",
-      html: emailTemplate,
-    });
-
     return NextResponse.json(
       {
         message: "Ticket created successfully",
         ticket: {
           id: ticket.id,
           status: ticket.status,
-          qrCodeUrl: ticket.qrCodeUrl,
           sessionDate: session.date,
+          courseName: course?.courseName || "Demo Session",
         },
       },
       { status: 201 }
@@ -102,8 +92,8 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
-}
 
+}
 export async function GET(req: NextRequest) {
   try {
     const tickets = await prisma.ticket.findMany({
