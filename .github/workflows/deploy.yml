@@ -90,3 +90,8 @@ jobs:
 
             echo "✅ Deployment completed successfully!"
             pm2 status
+
+      - name: Finalize deployment
+        run: |
+          echo "✅ Deployment script finished."
+          exit 0
