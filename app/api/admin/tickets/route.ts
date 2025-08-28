@@ -10,7 +10,7 @@ const adminTicketSchema = z.object({
   email: z.string().email(),
   name: z.string(),
   phone: z.string().min(10).optional(),
-  // sessionId: z.string().uuid(),
+  sessionId: z.string().uuid(),
 });
 
 export async function POST(req: NextRequest) {
@@ -26,9 +26,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // const { email, name, sessionId } = validation.data;
-    const { email, name } = validation.data;
-    const sessionId = "b0a89775-56f3-43f3-8550-1f7242b10942"
+    const { email, name, sessionId } = validation.data;
 
     const session = await prisma.demoSession.findUnique({
       where: { id: sessionId },
@@ -39,12 +37,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Session not found" }, { status: 404 });
     }
 
-    // if (session.tickets.length >= session.capacity) {
-    //   return NextResponse.json(
-    //     { error: "Session is at full capacity" },
-    //     { status: 400 }
-    //   );
-    // }
+    if (session.tickets.length >= session.capacity) {
+      return NextResponse.json(
+        { error: "Session is at full capacity" },
+        { status: 400 }
+      );
+    }
 
     let user = await prisma.user.findUnique({
       where: { email },

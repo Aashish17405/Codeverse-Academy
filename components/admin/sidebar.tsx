@@ -50,8 +50,8 @@ export function AdminSidebar({
   }
   return (
     <aside
-      className={`relative flex h-screen flex-col gap-2 border-r bg-gray-900 p-4 text-white transition-all duration-300 ${
-        isCollapsed ? "w-20 items-center" : "w-72"
+      className={`relative flex h-screen flex-col gap-2 bg-gray-900 p-3 text-white transition-all duration-300 ${
+        isCollapsed ? "w-20 items-center" : "w-64 h-full"
       } ${className}`}
     >
       <div className="flex items-center justify-between p-4">

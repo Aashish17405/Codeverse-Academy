@@ -22,7 +22,7 @@ export async function GET(
     const auth = checkAdminAuth(req);
     if (!auth.authorized) return auth.response;
 
-    const ticketId = context.params.id;
+    const { id: ticketId } = await context.params;
     console.log(ticketId);
 
     const ticket = await prisma.ticket.findUnique({
@@ -67,7 +67,7 @@ export async function PATCH(
     const auth = checkAdminAuth(req);
     if (!auth.authorized) return auth.response;
 
-    const ticketId = context.params.id;
+    const { id: ticketId } = await context.params;
     const body = await req.json();
 
     // Validate request body
@@ -134,7 +134,7 @@ export async function DELETE(
   context: { params: { id: string } }
 ) {
   try {
-    const ticketId = context.params.id;
+    const { id: ticketId } = await context.params;
 
     // Check if ticket exists
     const existingTicket = await prisma.ticket.findUnique({

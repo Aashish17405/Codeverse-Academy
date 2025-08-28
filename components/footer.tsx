@@ -127,8 +127,8 @@ export default function Footer() {
               <li className="flex items-center">
                 <MapPin className="h-10 w-10 text-cyan-400 mr-3 mt-0.5" />
                 <span className="text-gray-400">
-                  Suman Tower, 3rd Floor, Above ICICI Bank, Adityapur 1,
-                  Jamshedpur 831013
+                  Suman Tower, 2nd Floor, Above HDFC Bank, Adityapur 1,
+                  Hyderabad 831013
                 </span>
               </li>
             </ul>

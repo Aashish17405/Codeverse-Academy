@@ -134,9 +134,11 @@ export function DemoBookingForm({ children }: { children: React.ReactNode }) {
         ticketId: result.ticket.id,
         name: data.name,
         email: data.email,
+        phone: data.phone, // Add phone number to ticket data
         course: selectedSession.courseName,
         date: new Date(result.ticket.sessionDate),
         timeSlot,
+        sessionId: selectedSession.id, // Add sessionId for the email API
         venue:
           "Suman Tower, 3rd Floor, Above ICICI Bank, Adityapur 1, Jamshedpur",
       });
@@ -288,7 +290,11 @@ export function DemoBookingForm({ children }: { children: React.ReactNode }) {
       </Dialog>
 
       {showTicket && ticketData && (
-        <DemoTicket ticketData={ticketData} onClose={closeTicket} setTicketUrl={() => {}}/>
+        <DemoTicket
+          ticketData={ticketData}
+          onClose={closeTicket}
+          setTicketUrl={() => {}}
+        />
       )}
     </>
   );

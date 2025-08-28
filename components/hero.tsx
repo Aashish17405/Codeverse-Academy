@@ -9,7 +9,6 @@ import { useState, useEffect } from "react";
 import { VideoPopup } from "@/components/video-popup";
 import { AnimatePresence, motion } from "framer-motion";
 import { toast } from "sonner";
-import Internships from "./internships";
 
 interface Matter {
   title: string;
@@ -75,11 +74,7 @@ export default function Hero() {
       const response = await fetch("/api/sessions");
       const data = await response.json();
 
-      const demoSessions = data.filter(
-        (session: TicketData) =>
-          session.courseName.toLowerCase() === "intro session" ||
-          session.courseName === ""
-      );
+      const demoSessions = data;
 
       demoSessions.sort(
         (a: TicketData, b: TicketData) =>
@@ -94,7 +89,7 @@ export default function Hero() {
       if (upcomingSessions.length > 0) {
         const currentSession = upcomingSessions[0];
         setTicketInfo([currentSession]);
-        // console.log(currentSession);
+        console.log(currentSession);
 
         const isCurrentFull =
           currentSession.ticketCount >= currentSession.capacity;
@@ -129,7 +124,7 @@ export default function Hero() {
         }
       } else if (demoSessions.length > 0) {
         setTicketInfo([demoSessions[demoSessions.length - 1]]);
-        // console.log(demoSessions[demoSessions.length - 1]);
+        console.log(demoSessions[demoSessions.length - 1]);
       }
     } catch (e) {
       toast.error("Error fetching ticket data");
@@ -258,16 +253,15 @@ export default function Hero() {
           <div className="flex flex-col md:flex-row items-center gap-6 md:gap-10 min-h-[40vh] md:min-h-[50vh]">
             <div className="w-full md:flex-1 space-y-3 md:space-y-4 order-1">
               <p className="text-sm md:text-md font-medium text-gray-300">
-                Full Stack Web Development with AI and Blockchain
+                TRANSFORM YOUR CAREER
               </p>
               <h1 className="text-2xl sm:text-4xl md:text-4xl lg:text-4xl font-playfair font-bold leading-tight">
-                How To Be A Modern Developer
+                Master AI, MERN & Blockchain
               </h1>
               <p className="text-gray-300 text-base max-w-xl">
-                Jamshedpur's First Offline Coding Hub — Not just skill-building,
-                but a real programming environment with a tribe that codes,
-                creates, and grows together. Want to know what you'll learn?
-                Download the curriculum now!
+                Join our industry-leading program and become a full-stack
+                developer. Learn from experts, build real projects, and launch
+                your tech career.
               </p>
 
               <div className="relative block md:hidden w-full h-48 my-6 rounded-lg overflow-hidden">
@@ -311,30 +305,42 @@ export default function Hero() {
                       initial={{ y: 20, opacity: 0 }}
                       animate={{ y: 0, opacity: 1 }}
                       transition={{ duration: 0.4 }}
-                      className="bg-[#0f172a]/70 border border-white/10 backdrop-blur-sm rounded-xl px-4 py-3 text-white shadow-inner w-[90%] max-w-md"
+                      className="bg-[#0f172a]/70 border border-white/10 backdrop-blur-sm rounded-xl pl-4 py-3 text-white shadow-inner"
                     >
-                      <div className="flex items-center justify-between">
-                        {/* Left side - Session info */}
-                        <div className="flex-1 min-w-0">
+                      {/* Desktop Layout (3 columns) - Fixed spacing */}
+                      <div className="hidden sm:flex items-center gap-3">
+                        {/* Course name - Limited width */}
+                        <div className="w-2/5">
                           <p className="text-xs text-blue-300 font-semibold tracking-wide">
-                            New  Batch
+                            Upcoming Demo Session
                           </p>
                           <p className="text-lg font-bold text-white mt-1 truncate">
                             {ticketInfo[0]?.courseName
                               ? formatCourseName(ticketInfo[0].courseName)
-                              : "Sunday Session"}
+                              : "Sunday Demo Session"}
                           </p>
                         </div>
 
-                        {/* Right side - Timer */}
+                        <div className="w-1/5 text-center">
+                          <p className="text-xs text-yellow-400 drop-shadow-[0_0_6px_rgba(250,204,21,0.6)] font-semibold tracking-wide">
+                            Seats left
+                          </p>
+                          <p className="text-2xl font-extrabold text-yellow-400 mt-1 drop-shadow-sm">
+                            {ticketInfo[0]
+                              ? ticketInfo[0].capacity -
+                                ticketInfo[0].ticketCount
+                              : "-"}
+                          </p>
+                        </div>
+
                         {ticketInfo[0] &&
                           demoSessionTimer !== null &&
                           demoSessionTimer > 0 && (
-                            <div className="flex-shrink-0 ml-4">
-                              <p className="text-xs text-blue-300 font-semibold text-right mb-1">
+                            <div className="w-2/5">
+                              <p className="text-xs text-blue-300 font-semibold text-center mb-1">
                                 Time remaining
                               </p>
-                              <div className="flex space-x-2">
+                              <div className="flex justify-center space-x-2">
                                 {getTimerUnits(demoSessionTimer).map(
                                   (unit, index) => (
                                     <div
@@ -354,12 +360,69 @@ export default function Hero() {
                             </div>
                           )}
                       </div>
+
+                      {/* Mobile Layout (2-rows) */}
+                      <div className="sm:hidden">
+                        {/* First row: Course name */}
+                        <div className="mb-3">
+                          <p className="text-xs text-blue-300 font-semibold tracking-wide">
+                            Upcoming Demo Session
+                          </p>
+                          <p className="text-lg font-bold text-white mt-1">
+                            {ticketInfo[0]?.courseName
+                              ? formatCourseName(ticketInfo[0].courseName)
+                              : "Sunday Demo Session"}
+                          </p>
+                        </div>
+
+                        {/* Second row: Seats left and Timer side by side */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex-shrink-0 text-center">
+                            <p className="text-xs text-yellow-400 drop-shadow-[0_0_6px_rgba(250,204,21,0.6)] font-semibold tracking-wide">
+                              Seats left
+                            </p>
+                            <p className="text-2xl font-extrabold text-yellow-400 mt-1 drop-shadow-sm">
+                              {ticketInfo[0]
+                                ? ticketInfo[0].capacity -
+                                  ticketInfo[0].ticketCount
+                                : "-"}
+                            </p>
+                          </div>
+
+                          {ticketInfo[0] &&
+                            demoSessionTimer !== null &&
+                            demoSessionTimer > 0 && (
+                              <div className="flex-shrink-0">
+                                <p className="text-xs text-blue-300 font-semibold text-center mb-1">
+                                  Time remaining
+                                </p>
+                                <div className="flex space-x-1">
+                                  {getTimerUnits(demoSessionTimer).map(
+                                    (unit, index) => (
+                                      <div
+                                        key={index}
+                                        className="flex flex-col items-center"
+                                      >
+                                        <div className="bg-black/30 px-1 py-1 rounded text-xs font-mono text-white">
+                                          {unit.value}
+                                        </div>
+                                        <span className="text-[8px] text-blue-300 mt-0.5">
+                                          {unit.label}
+                                        </span>
+                                      </div>
+                                    )
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                        </div>
+                      </div>
                     </motion.div>
                   )}
                 </AnimatePresence>
               )}
 
-              {/* {isCurrentSessionFull && nextSessionInfo && (
+              {isCurrentSessionFull && nextSessionInfo && (
                 <div className="bg-amber-500/20 border border-amber-400/30 px-4 py-3 rounded-lg text-white">
                   <p className="text-sm">
                     <span className="font-semibold">
@@ -371,14 +434,14 @@ export default function Hero() {
                     {nextSessionInfo.timeSlot || "4:00 PM - 6:00 PM"}.
                   </p>
                 </div>
-              )} */}
+              )}
 
               <div className="flex flex-wrap gap-3 md:gap-4 pt-3">
                 <button
                   onClick={() => setShowEnrollmentPopup(true)}
                   className="w-full sm:w-auto bg-yellow-400 text-black px-6 md:px-8 py-2 md:py-3 rounded-md font-semibold hover:bg-yellow-300 transition"
                 >
-                  Register Now
+                  Book a free demo
                 </button>
                 <button
                   onClick={() => setShowEnrollmentPopup2(true)}
@@ -391,7 +454,7 @@ export default function Hero() {
 
               {ticketInfo.length > 0 && (
                 <p className="text-sm mt-1 text-blue-300">
-                  New Batch:{" "}
+                  Upcoming Demo Session:{" "}
                   {new Date(ticketInfo[0].date).toLocaleDateString("en-US", {
                     weekday: "long",
                     month: "short",
@@ -425,8 +488,6 @@ export default function Hero() {
         </div>
       </div>
 
-      <Internships />
-
       <div className="bg-[#0f172a] text-white py-8 md:py-16 w-full">
         <div className="px-4 md:px-6 lg:px-24">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8 max-w-7xl mx-auto">
@@ -440,14 +501,12 @@ export default function Hero() {
       <VideoPopup
         isVisible={showVideoPopup}
         onClose={() => setShowVideoPopup(false)}
-        videoUrl="https://youtu.be/YOqXO2oHU0k?si=BAyMTlUGCYWB4jSh"
+        videoUrl="https://youtu.be/0tZFQs7qBfQ?si=SrHCkw9eFYKCBFsN"
       />
 
       <EnrollmentPopup
         initialVisible={showEnrollmentPopup}
-        onClose={() => {
-          setShowEnrollmentPopup(false);
-        }}
+        onClose={() => setShowEnrollmentPopup(false)}
       />
 
       <EnrollmentPopup2

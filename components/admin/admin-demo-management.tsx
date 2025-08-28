@@ -291,7 +291,7 @@ export default function AdminDemoSessionManagement() {
   };
 
   return (
-    <div className="p-3 space-y-6">
+    <div className="space-y-6">
       <Card className="bg-gray-900 border-gray-800 shadow-lg">
         <CardHeader>
           <CardTitle className="text-xl sm:text-2xl text-cyan-400 flex items-center gap-2">

@@ -6,11 +6,11 @@ import prisma from "@/lib/prisma";
 import { generateAdminEmailTemplate } from "@/lib/adminEmail";
 
 // Configure cloudinary
-// cloudinary.config({
-//   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-//   api_key: process.env.CLOUDINARY_API_KEY,
-//   api_secret: process.env.CLOUDINARY_API_SECRET,
-// });
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,12 +19,12 @@ export async function POST(req: NextRequest) {
 
     // Define schema for email requests
     const emailRequestSchema = z.object({
-      // ticketImage: z.string(),
+      ticketImage: z.string().nullable().optional(), // Allow null or undefined
       email: z.string().email(),
       name: z.string().min(2),
-      phone: z.string(),
-      // sessionId: z.string().uuid(),
-      // ticketId: z.string(),
+      phone: z.string().optional(), // Make phone optional since it's not always available
+      sessionId: z.string().uuid(),
+      ticketId: z.string(),
       courseName: z.string().optional().default("Demo Session"),
     });
 
@@ -36,143 +36,172 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // const { ticketImage, email, name, sessionId, ticketId, courseName } = validation.data;
-    const { email, name, courseName, phone } = validation.data;
+    const { ticketImage, email, name, sessionId, ticketId, courseName, phone } =
+      validation.data;
+
+    // Add logging to see what we received
+    console.log("Request validation successful");
+    console.log("Ticket image length:", ticketImage ? ticketImage.length : 0);
+    console.log("Has ticket image:", !!ticketImage);
+    console.log(
+      "Image starts with data URL:",
+      ticketImage ? ticketImage.startsWith("data:") : false
+    );
 
     // First check if the ticket already has a valid image URL
-    // const existingTicket = await prisma.ticket.findUnique({
-    //   where: { id: ticketId },
-    //   select: { qrCodeUrl: true },
-    // });
+    const existingTicket = await prisma.ticket.findUnique({
+      where: { id: ticketId },
+      select: { qrCodeUrl: true },
+    });
 
     // If the ticket already has a valid image URL, use it
-    // let imageUrl;
-    // if (existingTicket?.qrCodeUrl && existingTicket.qrCodeUrl !== "") {
-    //   console.log(
-    //     "Ticket already has an image URL, skipping upload:",
-    //     existingTicket.qrCodeUrl
-    //   );
-    //   imageUrl = existingTicket.qrCodeUrl;
-    // } else {
-    //   // Upload the ticket image to Cloudinary with retry mechanism
-    //   const maxRetries = 3;
-    //   let retryCount = 0;
-    //   let uploadSuccess = false;
+    let imageUrl = "";
+    if (existingTicket?.qrCodeUrl && existingTicket.qrCodeUrl !== "") {
+      console.log(
+        "Ticket already has an image URL, skipping upload:",
+        existingTicket.qrCodeUrl
+      );
+      imageUrl = existingTicket.qrCodeUrl;
+    } else if (ticketImage) {
+      // Validate that ticketImage is a valid data URL
+      if (!ticketImage.startsWith("data:image/")) {
+        console.error("Invalid image format - not a data URL");
+        imageUrl =
+          "https://res.cloudinary.com/djlgmbop9/image/upload/q_100/logo_qrkfiv.jpg";
+      } else {
+        // Only upload if ticketImage is provided and valid
+        // Upload the ticket image to Cloudinary with retry mechanism
+        const maxRetries = 3;
+        let retryCount = 0;
+        let uploadSuccess = false;
 
-    //   while (retryCount < maxRetries && !uploadSuccess) {
-    //     try {
-    //       console.log(
-    //         `Starting Cloudinary upload (attempt ${
-    //           retryCount + 1
-    //         } of ${maxRetries})...`
-    //       );
+        console.log("Valid image data URL detected, proceeding with upload...");
 
-    //       // Check if the image is too large and optimize if needed
-    //       const isDataUrl = ticketImage.startsWith("data:");
-    //       let optimizedImage = ticketImage;
+        while (retryCount < maxRetries && !uploadSuccess) {
+          try {
+            console.log(
+              `Starting Cloudinary upload (attempt ${
+                retryCount + 1
+              } of ${maxRetries})...`
+            );
 
-    //       if (isDataUrl && ticketImage.length > 500000) {
-    //         console.log("Image is large, optimizing before upload");
-    //         // Just take the image as is, but in a real app you might want to resize/compress it
-    //       }
+            // Check if the image is too large and optimize if needed
+            const isDataUrl = ticketImage.startsWith("data:");
+            let optimizedImage = ticketImage;
 
-    //       // Upload with timeout and optimization options
-    //       const uploadResponse = await cloudinary.uploader.upload(
-    //         optimizedImage,
-    //         {
-    //           folder: "tickets",
-    //           timeout: 60000, // 1 minute timeout per attempt
-    //           quality: 100, // Set quality to 100% for high quality images
-    //           fetch_format: "auto", // Let Cloudinary choose the best format
-    //           public_id: `ticket-${ticketId}-${name.replace(
-    //             /[^a-zA-Z0-9]/g,
-    //             "-"
-    //           )}`, // Set a custom public ID with the ticket ID and name
-    //           resource_type: "image",
-    //           overwrite: true, // Overwrite if exists
-    //         }
-    //       );
+            if (isDataUrl && ticketImage.length > 500000) {
+              console.log("Image is large, optimizing before upload");
+              // Just take the image as is, but in a real app you might want to resize/compress it
+            }
 
-    //       // Get the secure URL and ensure it has the q_100 parameter
-    //       imageUrl = uploadResponse.secure_url;
-    //       console.log("Image uploaded to Cloudinary:", imageUrl);
-    //       uploadSuccess = true;
+            // Upload with timeout and optimization options
+            const uploadResponse = await cloudinary.uploader.upload(
+              optimizedImage,
+              {
+                folder: "tickets",
+                timeout: 60000, // 1 minute timeout per attempt
+                quality: 100, // Set quality to 100% for high quality images
+                fetch_format: "auto", // Let Cloudinary choose the best format
+                public_id: `ticket-${ticketId}-${name.replace(
+                  /[^a-zA-Z0-9]/g,
+                  "-"
+                )}`, // Set a custom public ID with the ticket ID and name
+                resource_type: "image",
+                overwrite: true, // Overwrite if exists
+              }
+            );
 
-    //       // Break out of the loop since we've successfully uploaded the image
-    //       break;
-    //     } catch (uploadError) {
-    //       retryCount++;
-    //       console.error(
-    //         `Error uploading to Cloudinary (attempt ${retryCount} of ${maxRetries}):`,
-    //         uploadError
-    //       );
+            // Get the secure URL and ensure it has the q_100 parameter
+            imageUrl = uploadResponse.secure_url;
+            console.log(
+              "✅ Image uploaded to Cloudinary successfully:",
+              imageUrl
+            );
+            console.log("Upload response details:", {
+              public_id: uploadResponse.public_id,
+              secure_url: uploadResponse.secure_url,
+              format: uploadResponse.format,
+              bytes: uploadResponse.bytes,
+            });
+            uploadSuccess = true;
 
-    //       if (retryCount < maxRetries) {
-    //         // Wait before retrying (exponential backoff)
-    //         const delay = Math.pow(2, retryCount) * 1000;
-    //         console.log(`Retrying in ${delay}ms...`);
-    //         await new Promise((resolve) => setTimeout(resolve, delay));
-    //       }
-    //     }
-    //   }
+            // Break out of the loop since we've successfully uploaded the image
+            break;
+          } catch (uploadError) {
+            retryCount++;
+            console.error(
+              `❌ Error uploading to Cloudinary (attempt ${retryCount} of ${maxRetries}):`,
+              uploadError
+            );
 
-    //   // If all upload attempts failed, use a fallback image
-    //   if (!uploadSuccess) {
-    //     imageUrl =
-    //       "https://res.cloudinary.com/djlgmbop9/image/upload/q_100/logo_qrkfiv.jpg"; // High quality fallback image
-    //     console.log(
-    //       "All upload attempts failed. Using fallback image URL:",
-    //       imageUrl
-    //     );
-    //   }
+            if (retryCount < maxRetries) {
+              // Wait before retrying (exponential backoff)
+              const delay = Math.pow(2, retryCount) * 1000;
+              console.log(`Retrying in ${delay}ms...`);
+              await new Promise((resolve) => setTimeout(resolve, delay));
+            }
+          }
+        }
 
-    //   try {
-    //     await prisma.ticket.update({
-    //       where: { id: ticketId },
-    //       data: { qrCodeUrl: imageUrl },
-    //     });
-    //     console.log("Ticket updated with image URL:", imageUrl);
-    //   } catch (dbError) {
-    //     console.error("Error updating ticket with image URL:", dbError);
-    //   }
-    // }
+        // If all upload attempts failed, use a fallback image
+        if (!uploadSuccess) {
+          imageUrl =
+            "https://res.cloudinary.com/djlgmbop9/image/upload/q_100/logo_qrkfiv.jpg"; // High quality fallback image
+          console.log(
+            "❌ All upload attempts failed. Using fallback image URL:",
+            imageUrl
+          );
+        }
+      }
+
+      try {
+        await prisma.ticket.update({
+          where: { id: ticketId },
+          data: { qrCodeUrl: imageUrl },
+        });
+        console.log("✅ Ticket updated with image URL in database:", imageUrl);
+      } catch (dbError) {
+        console.error("❌ Error updating ticket with image URL:", dbError);
+      }
+    } else {
+      // No ticket image provided, use fallback
+      console.log("No ticket image provided, using fallback image");
+      imageUrl =
+        "https://res.cloudinary.com/djlgmbop9/image/upload/q_100/logo_qrkfiv.jpg"; // Default fallback image
+    }
 
     const session = await prisma.demoSession.findUnique({
-      where: { id: "5a66db11-ad7d-4297-8526-37b9fc7a19fa" },
+      where: { id: sessionId },
     });
 
     if (!session) {
       return NextResponse.json({ error: "Session not found" }, { status: 404 });
     }
 
-    // Ensure the Cloudinary URL has the q_100 parameter for high quality
-    // let highQualityImageUrl = imageUrl;
-    // if (highQualityImageUrl && highQualityImageUrl.includes("cloudinary.com")) {
-    //   // Check if the URL already contains 'q_' parameter
-    //   if (!highQualityImageUrl.includes("/q_")) {
-    //     // Insert q_100 after /upload/ in the URL
-    //     highQualityImageUrl = highQualityImageUrl.replace(
-    //       "/upload/",
-    //       "/upload/q_100/"
-    //     );
-    //   }
+    // Ensure the Cloudinary URL has optimal parameters for email display
+    let finalImageUrl = imageUrl;
+    if (finalImageUrl && finalImageUrl.includes("cloudinary.com")) {
+      // Ensure high quality and proper format for email
+      if (!finalImageUrl.includes("/q_")) {
+        // Insert q_100 after /upload/ in the URL for highest quality
+        finalImageUrl = finalImageUrl.replace(
+          "/upload/",
+          "/upload/q_100,f_auto,dpr_auto/"
+        );
+      }
 
-    //   // Add fl_attachment and filename parameters to force download with correct filename
-    //   if (!highQualityImageUrl.includes("fl_attachment")) {
-    //     // Add fl_attachment and a specific filename
-    //     highQualityImageUrl = highQualityImageUrl.includes("?")
-    //       ? `${highQualityImageUrl}&fl_attachment:AstratechAI%20Ticket.png`
-    //       : `${highQualityImageUrl}?fl_attachment:AstratechAI%20Ticket.png`;
-    //   }
-    // }
+      console.log("📧 Final optimized image URL for email:", finalImageUrl);
+    } else {
+      console.log("📧 Using non-Cloudinary image URL:", finalImageUrl);
+    }
 
-    const ticketId = "asdfasdfasdf";
+    console.log("🚀 Generating email template with image URL...");
     const emailTemplate = generateTicketEmailTemplate(
       name,
       session.date,
       ticketId,
-      courseName
-      // highQualityImageUrl || ""
+      courseName,
+      finalImageUrl || ""
     );
 
     const emailSent = await sendEmail({
@@ -189,12 +218,16 @@ export async function POST(req: NextRequest) {
     }
 
     console.log("✅ Ticket sent successfully to", email);
+    console.log("📄 Email included image URL:", finalImageUrl);
 
-    const adminEmailTemplate = generateAdminEmailTemplate(name, email, phone);
+    const adminEmailTemplate = generateAdminEmailTemplate(
+      name,
+      email,
+      phone || "Not provided"
+    );
 
     const AdminEmailSent = await sendEmail({
-      to: "www.allinoneforyouhere@gmail.com",
-      // to: "aashish17405@gmail.com",
+      to: "aashish17405@gmail.com",
       subject: "New Registration",
       html: adminEmailTemplate,
     });
@@ -206,15 +239,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log(
-      "✅ Admin email sent successfully to",
-      "www.allinoneforyouhere@gmail.com"
-    );
+    console.log("✅ Admin email sent successfully to aashish17405@gmail.com");
 
     return NextResponse.json(
       {
         message: "Ticket email sent successfully",
-        // imageUrl,
+        imageUrl: finalImageUrl,
         emailSent: true,
       },
       { status: 200 }

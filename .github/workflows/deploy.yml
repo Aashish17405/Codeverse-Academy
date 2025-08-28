@@ -63,6 +63,9 @@ jobs:
             echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.EMAIL_PASSWORD }}" >> .env.local
             echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> .env.local
             echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env.local
+            echo "CLOUDINARY_CLOUD_NAME=${{ secrets.CLOUDINARY_CLOUD_NAME }}" >> .env.local
+            echo "CLOUDINARY_API_KEY=${{ secrets.CLOUDINARY_API_KEY }}" >> .env.local
+            echo "CLOUDINARY_API_SECRET=${{ secrets.CLOUDINARY_API_SECRET }}" >> .env.local
 
             echo "📦 Installing dependencies..."
             npm install --legacy-peer-deps

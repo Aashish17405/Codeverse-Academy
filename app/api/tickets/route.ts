@@ -6,7 +6,7 @@ import { z } from "zod";
 const ticketSchema = z.object({
   email: z.string().email(),
   name: z.string(),
-  // sessionId: z.string().uuid(),
+  sessionId: z.string().uuid(),
   // Removed imageUrl requirement as it will be added later
 });
 
@@ -23,9 +23,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // const { email, name, sessionId } = validation.data;
-    const { email, name } = validation.data;
-    const sessionId = "5a66db11-ad7d-4297-8526-37b9fc7a19fa"
+    const { email, name, sessionId } = validation.data;
 
     const session = await prisma.demoSession.findUnique({
       where: { id: sessionId },
@@ -36,12 +34,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Session not found" }, { status: 404 });
     }
 
-    // if (session.tickets.length >= session.capacity) {
-    //   return NextResponse.json(
-    //     { error: "Session is at full capacity" },
-    //     { status: 400 }
-    //   );
-    // }
+    if (session.tickets.length >= session.capacity) {
+      return NextResponse.json(
+        { error: "Session is at full capacity" },
+        { status: 400 }
+      );
+    }
 
     let user = await prisma.user.findUnique({
       where: { email },

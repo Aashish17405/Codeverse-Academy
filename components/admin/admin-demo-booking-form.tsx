@@ -120,9 +120,11 @@ export default function AdminDemoBookingForm() {
         ticketId: ticket.id,
         name: data.name,
         email: data.email,
+        phone: data.phone, // Add phone number to ticket data
         course: selectedSession.courseName,
         date: new Date(selectedSession.date),
         timeSlot,
+        sessionId: data.sessionId, // Add sessionId for the email API
         status: "CONFIRMED",
       });
 
@@ -225,8 +227,8 @@ export default function AdminDemoBookingForm() {
                       ) : (
                         sessions.map((session) => (
                           <SelectItem key={session.id} value={session.id}>
-                            {session.courseName}{" "}
-                            — {format(new Date(session.date), "PPP")} (
+                            {session.courseName} —{" "}
+                            {format(new Date(session.date), "PPP")} (
                             {session.ticketCount}/{session.capacity})
                           </SelectItem>
                         ))

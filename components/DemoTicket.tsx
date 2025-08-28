@@ -81,7 +81,7 @@ export function DemoTicket({
         const sanitizedName = ticketData.name
           .replace(/[^a-zA-Z0-9]/g, "-")
           .substring(0, 20);
-        link.download = `AstraTech-Golden-Ticket-${sanitizedName}-${formattedDate}.png`;
+        link.download = `Codeverse-Golden-Ticket-${sanitizedName}-${formattedDate}.png`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -179,7 +179,11 @@ export function DemoTicket({
 
       // console.log("Optimizing image before sending...");
       const optimizedImage = await optimizeImage(imageDataUrl);
-      // console.log("Image optimized, sending to server...");
+      console.log(
+        "🖼️ Image optimized for upload, size:",
+        optimizedImage.length
+      );
+      console.log("🚀 Sending ticket to server with image...");
 
       // Create an AbortController for timeout
       const controller = new AbortController();
@@ -196,6 +200,7 @@ export function DemoTicket({
             ticketImage: optimizedImage,
             email: ticketData.email,
             name: ticketData.name,
+            phone: ticketData.phone, // Add phone number
             sessionId: ticketData.sessionId,
             ticketId: ticketData.ticketId,
             courseName: ticketData.course || "Demo Session",
@@ -207,10 +212,13 @@ export function DemoTicket({
 
         if (!serverResponse.ok) {
           const errorData = await serverResponse.json();
+          console.error("❌ Server response error:", errorData);
           throw new Error(errorData.error || "Failed to send ticket to server");
         }
 
-        // console.log("Ticket sent to server successfully");
+        const responseData = await serverResponse.json();
+        console.log("✅ Ticket sent to server successfully");
+        console.log("📧 Server confirmed image URL:", responseData.imageUrl);
       } catch (fetchError: any) {
         if (fetchError.name === "AbortError") {
           // console.log("Request timed out");
@@ -243,9 +251,9 @@ export function DemoTicket({
             <div className="w-1/3 py-4 px-5 border-r-2 border-black/20 flex flex-col items-center justify-between">
               <div className="w-full flex justify-center mb-2">
                 <img
-                  src="/logo.png"
+                  src="/logo.webp"
                   className="w-16 h-16 rounded-full border-2 border-black/20 object-cover"
-                  alt="Astratech Logo"
+                  alt="Codeverse Logo"
                   crossOrigin="anonymous"
                 />
               </div>
@@ -304,8 +312,8 @@ export function DemoTicket({
                 </p>
                 <div className="mt-2 p-2 bg-black/10 rounded-lg text-sm">
                   <p className="font-semibold">VENUE</p>
-                  <p>Suman Tower, 3rd Floor, Above ICICI Bank</p>
-                  <p>Adityapur 1, Jamshedpur</p>
+                  <p>Suman Tower, 2nd Floor, Above HDFC Bank</p>
+                  <p>Adityapur 1, Hyderabad 831013</p>
                 </div>
               </div>
 

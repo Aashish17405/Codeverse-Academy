@@ -119,14 +119,24 @@ export default function EnrollmentPopup({
       try {
         const res = await fetch("/api/sessions");
         const data = await res.json();
-        setSessions(data);
 
-        // Sort sessions by date (earliest first)
-        const sortedSessions = [...data].sort(
+        // Get current time
+        const now = new Date().getTime();
+
+        // Filter out past sessions (only upcoming sessions)
+        const upcomingSessions = data.filter(
+          (session: Session) => new Date(session.date).getTime() > now
+        );
+
+        // Set only upcoming sessions
+        setSessions(upcomingSessions);
+
+        // Sort upcoming sessions by date (earliest first)
+        const sortedSessions = [...upcomingSessions].sort(
           (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
         );
 
-        // Find the earliest session with capacity
+        // Find the earliest upcoming session with capacity
         const firstSession = sortedSessions[0];
         const availableSession = sortedSessions.find(
           (session) => session.ticketCount < session.capacity
@@ -141,7 +151,7 @@ export default function EnrollmentPopup({
           setFirstSessionFilled(true);
           setEarliestFilledSession(firstSession);
         }
-
+        
         // Set the selected session to the available one
         if (availableSession) {
           setSelectedSession(availableSession);
@@ -149,6 +159,8 @@ export default function EnrollmentPopup({
           // No sessions with capacity available
           console.error("No sessions with available capacity");
         }
+
+        console.log("Available session:", selectedSession);
       } catch (err) {
         console.error("Failed to load sessions", err);
       } finally {
@@ -181,13 +193,14 @@ export default function EnrollmentPopup({
   };
 
   const onSubmit = async (data: FormValues) => {
-    // if (!selectedSession) {
-    //   alert("No available session found. Please try again later.");
-    //   return;
-    // }
+    if (!selectedSession) {
+      alert("No available session found. Please try again later.");
+      return;
+    }
 
     try {
-      const randomSentence = LOADING_SENTENCES[Math.floor(Math.random() * LOADING_SENTENCES.length)];
+      const randomSentence =
+        LOADING_SENTENCES[Math.floor(Math.random() * LOADING_SENTENCES.length)];
       setLoadingMessage(randomSentence);
       setLoading(true);
 
@@ -197,7 +210,8 @@ export default function EnrollmentPopup({
         body: JSON.stringify({
           name: data.name,
           email: data.email,
-          // sessionId: selectedSession.id,
+          sessionId: selectedSession.id,
+          phone: data.phone,
         }),
       });
 
@@ -212,29 +226,35 @@ export default function EnrollmentPopup({
           name: data.name,
           email: data.email,
           phone: data.phone,
-          sessionId: "241c5f5e-02b9-4ad5-9430-c9aa411a0458",
+          sessionId: selectedSession.id,
+          ticketId: result.ticket.id,
+          ticketImage: ticketUrl,
         }),
       });
 
-      // const timeSlot =
-      //   selectedSession.courseName === "regular"
-      //     ? "4:00 PM - 6:00 PM"
-      //     : "6:00 PM - 8:00 PM";
+      const mailResult = await mailSent.json();
+      if (!mailSent.ok)
+        throw new Error(mailResult.error || "Failed to send ticket email");
 
-      // setTicketData({
-      //   ticketId: result.ticket.id,
-      //   name: data.name,
-      //   email: data.email,
-      //   course: result.ticket.courseName || selectedSession.courseName,
-      //   date: new Date(result.ticket.sessionDate),
-      //   timeSlot,
-      //   sessionId: selectedSession.id, // Add sessionId for the ticket email
-      //   phone: data.phone, // Include phone for potential future use
-      //   venue:
-      //     "Suman Tower, 3rd Floor, Above ICICI Bank, Adityapur 1, Jamshedpur",
-      // });
+      const timeSlot =
+        selectedSession.courseName === "regular"
+          ? "4:00 PM - 6:00 PM"
+          : "6:00 PM - 8:00 PM";
 
-      // setShowTicket(true);
+      setTicketData({
+        ticketId: result.ticket.id,
+        name: data.name,
+        email: data.email,
+        course: result.ticket.courseName || selectedSession.courseName,
+        date: new Date(result.ticket.sessionDate),
+        timeSlot,
+        sessionId: selectedSession.id, // Add sessionId for the ticket email
+        phone: data.phone, // Include phone for potential future use
+        venue:
+          "Suman Tower, 2nd Floor, Above HDFC Bank, Adityapur 1, Hyderabad 831013",
+      });
+
+      setShowTicket(true);
       form.reset();
       toast.success("Registration successful!");
     } catch (err) {
@@ -242,7 +262,7 @@ export default function EnrollmentPopup({
       toast.error("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
-      closePopup();
+      // Don't close popup here - let the ticket show first
     }
   };
 
@@ -256,7 +276,7 @@ export default function EnrollmentPopup({
   return (
     <>
       <AnimatePresence>
-        {isVisible && (
+        {isVisible && !showTicket && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -312,8 +332,7 @@ export default function EnrollmentPopup({
                       Reserve your spot now!
                     </h3>
                   </div>
-
-                  {/* {selectedSession && (
+                  {selectedSession && (
                     <div className="mb-4 p-3 border border-blue-500/20 rounded-md bg-blue-500/10">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center text-blue-300">
@@ -347,8 +366,7 @@ export default function EnrollmentPopup({
                         </div>
                       )}
                     </div>
-                  )} */}
-{/* 
+                  )}{" "}
                   {sessionsLoading ? (
                     <div className="flex items-center justify-center p-4">
                       <div className="w-6 h-6 border-2 border-t-transparent border-blue-500 rounded-full animate-spin"></div>
@@ -439,8 +457,8 @@ export default function EnrollmentPopup({
                         </Button>
                       </form>
                     </Form>
-                  )} */}
-                  <Form {...form}>
+                  )}
+                  {/* <Form {...form}>
                       <form
                         onSubmit={form.handleSubmit(onSubmit)}
                         className="space-y-4 py-2"
@@ -520,7 +538,7 @@ export default function EnrollmentPopup({
                           )}
                         </Button>
                       </form>
-                    </Form>
+                    </Form> */}
                 </CardContent>
               </Card>
             </motion.div>
@@ -528,13 +546,13 @@ export default function EnrollmentPopup({
         )}
       </AnimatePresence>
 
-      {/* {showTicket && ticketData && (
+      {showTicket && ticketData && (
         <DemoTicket
           ticketData={ticketData}
           onClose={closeTicket}
           setTicketUrl={setTicketUrl}
         />
-      )} */}
+      )}
     </>
   );
 }

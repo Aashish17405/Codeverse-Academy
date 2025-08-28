@@ -111,7 +111,7 @@ export function generateTicketEmailTemplate(
     </head>
     <body>
       <div class="header">
-    <img src="https://res.cloudinary.com/djlgmbop9/image/upload/q_100/logo_qrkfiv" 
+    <img src="https://res.cloudinary.com/djlgmbop9/image/upload/q_100/logo_i3joxe" 
       alt="Codeverse Academy Logo" 
             width="75" 
             height="75">
@@ -203,7 +203,7 @@ export function generatePaymentConfirmationEmail(
       </head>
       <body>
         <div class="header">
-      <img src="https://res.cloudinary.com/djlgmbop9/image/upload/q_100/logo_qrkfiv" 
+      <img src="https://res.cloudinary.com/djlgmbop9/image/upload/q_100/logo_i3joxe" 
         alt="Codeverse Academy Logo" 
               width="75" 
               height="75">
