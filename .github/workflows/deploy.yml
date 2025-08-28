@@ -28,11 +28,14 @@ jobs:
 
       # 3. Deploy to EC2 via SSH and manage with PM2
       - name: Deploy to EC2
-        uses: appleboy/ssh-action@master
+        uses: appleboy/ssh-action@v0.1.10
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          timeout: 300s
+          command_timeout: 600s
           script: |
             cd /home/ubuntu
             echo "📁 Entered /home/ubuntu directory"
@@ -49,7 +52,7 @@ jobs:
 
             if [ ! -d "Codeverse-Academy" ]; then
               echo "🧬 Cloning repository..."
-              git clone git@github.com:aashish17405/Codeverse-Academy.git 
+              git clone https://github.com/Aashish17405/Codeverse-Academy.git 
             fi        
 
             cd Codeverse-Academy
@@ -59,8 +62,8 @@ jobs:
             git reset --hard origin/main
 
             echo "🌱 Setting environment..."
-            echo "DB_PASSWORD=${{ secrets.EMAIL_USER }}" > .env.local
-            echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.EMAIL_PASSWORD }}" >> .env.local
+            echo "EMAIL_USER=${{ secrets.EMAIL_USER }}" > .env.local
+            echo "EMAIL_PASSWORD=${{ secrets.EMAIL_PASSWORD }}" >> .env.local
             echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> .env.local
             echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env.local
             echo "CLOUDINARY_CLOUD_NAME=${{ secrets.CLOUDINARY_CLOUD_NAME }}" >> .env.local
@@ -84,3 +87,6 @@ jobs:
 
             echo "🚀 Starting app with PM2..."
             pm2 start npm --name "nextjs-app" -- start
+
+            echo "✅ Deployment completed successfully!"
+            pm2 status
